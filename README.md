@@ -6,8 +6,6 @@ A f90 implementation of the Mittag-Leffler function.
 
         Simply issue make and then ./test_mlfv on a mac (it should be ok in a linux machine too)
 
-A help file is available.
-
 ## On the fortran code
 
 The original fortran code is provided by Davide Verotta.  I have simply modified and updated to accommodate the free form of Fortran 90 and  to deal with complex numbers.   I thank Davide for allowing me to make the code publicly available.
