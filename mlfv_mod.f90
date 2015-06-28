@@ -2,7 +2,7 @@ module mlfv_mod
 
 private 
 
-public :: mlfv
+public :: mlfv, mlfvderiv
 
 contains
 
@@ -81,9 +81,9 @@ l3=(abs(z).LE.floor(20/(2.1-alpha)**(5.5-2*alpha)))
 l4=(alpha.GE.2d0) .AND. (abs(z).LE.50d0)
 !
 if (l1.OR.l2.AND.L3.OR.l4) then
-  oldsum=0d0
+  oldsum=dcmplx(0d0,0d0)
   k=0
-  do while ((alpha*k+beta).LE.0 )
+  do while ((alpha*k+beta).LE.0d0)
     k=k+1
   end do
   newsum=z**k/gamma(alpha*k+beta)
@@ -126,6 +126,7 @@ if (alpha.LE.1.AND.abs(z).LE.floor(5*alpha+10)) then
       res=aux+(z**((1.D0-beta)/alpha))*(exp(z**(1.D0/alpha))/alpha)
     end if
   else
+!    print *,"here 5"
     eps=abs(z)+0.5D0
     aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps)
     res=rombint(KN,eps,r0,fi,alpha,beta,z,0.d0)+aux
@@ -134,21 +135,37 @@ if (alpha.LE.1.AND.abs(z).LE.floor(5*alpha+10)) then
 endif
 !
 if (alpha.LE.1) then 
+!  print *,"here 6",aaz
   if (aaz<(pi*alpha/2.D0+min(pi,pi*alpha))/2.D0) then 
     newsum=(z**((1.D0-beta)/alpha))*exp(z**(1.D0/alpha))/alpha
+!    print *, newsum
     do k=1,floor(fi/log10(abs(z)))
-      newsum=newsum-((z**(-k))/gamma(beta-alpha*k))
+! There is a need to avoid gamma of negative numbers. NaN
+       if (ceiling(beta-alpha*k)/=floor(beta-alpha*k)) then
+!      print *,k,z**(-k),alpha,beta,beta-alpha*k,gamma(beta-alpha*k)
+         newsum=newsum-((z**(-k))/gamma(beta-alpha*k))
+!       else
+!         print *,'beta-alpha*k', beta-alpha*k
+       end if   
     end do
+!    print *,newsum
     res=newsum
   else 
+!    print *,"here 7"
     newsum=0d0
     do k=1,floor(fi/log10(abs(z)))
-      newsum=newsum-((z**(-k))/gamma(beta-alpha*k))
+! There is a need to avoid gamma of negative numbers.
+       if (ceiling(beta-alpha*k)/=floor(beta-alpha*k)) then
+          newsum=newsum-((z**(-k))/gamma(beta-alpha*k))
+!       else
+!         print *,'beta-alpha*k', beta-alpha*k
+       end if
     end do
     res=newsum
   end if
 else
   if (alpha.GE.2) then
+!    print *,"here 8"
     m=floor(alpha/2.D0)
     aux=0d0
 ! recursive call
@@ -163,6 +180,7 @@ else
 !  I had to use sqrt instead of **(1/2) since fortran returns real values
 !      the latter.
 !  
+!    print *,"here 9"
     a1=mlfv(alpha/2,beta,sqrt(z),fi)
     a2=mlfv(alpha/2,beta,-sqrt(z),fi)
     res=(a1+a2)/2d0
@@ -257,5 +275,52 @@ pp=((epsn**(1.d0+(1.d0-beta)/alpha))/(2.d0*pi*alpha))*((exp((epsn**(1/alpha))*co
 !
 end function pp
 
+! ============================================================================
+complex(8) function mlfvderiv(alpha,beta,z,fi)
+implicit none 
+real(8) :: alpha,beta
+integer :: fi
+complex(8) :: z,newsum
+real(8) :: d,w,aux,k1
+integer :: k,k0
+!
+newsum=dcmplx(0d0,0d0)
+w=alpha+beta-3d0/2d0
+d=alpha*alpha-4d0*alpha*beta+6d0*alpha+1
+
+! I had to add the following conditional statement to avoid log(1)
+if (abs(log(abs(z))) < 10d-6) then
+   aux=100000d0
+else
+   aux=abs(log(fi*(1-abs(z)))/log(abs(z)))
+end if
+
+if (abs(z) >0 .AND. abs(z) < 1) then 
+   if (alpha > 1) then
+      k1=abs((2d0-alpha-beta)/(alpha-1))+1
+   else 
+     if (alpha > 0 .AND. alpha <= 1 .AND. d <= 0) then
+        k1=abs((3d0-alpha-beta)/alpha)+1
+     else 
+        k1=max(abs((3d0-alpha-beta)/alpha)+1,abs((1d0-2d0*w*alpha+sqrt(d))/(2d0*alpha*alpha))+1)
+     end if
+   end if
+
+   k0=ceiling(max(k1,aux))
+   
+   do k=0,k0
+     newsum=newsum+((k+1)*z**k)/gamma(alpha+beta+alpha*k)
+   end do
+else if (abs(z)==0d0) then
+   aux=-2d0
+   newsum=gamma(aux)  
+else
+   newsum=(mlfv(alpha,beta-1d0,z,fi)-(beta-1d0)*mlfv(alpha,beta,z,fi))/(alpha*z)
+end if
+
+mlfvderiv=newsum
+
+
+end function mlfvderiv
 
 end module mlfv_mod
